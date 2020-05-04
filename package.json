@@ -1,0 +1,22 @@
+{
+  "name": "mandelbrot",
+  "repository": "FlavienBusseuil/mandelbrot",
+  "author": "Flavien Busseuil",
+  "private": true,
+  "license": "GPL V3",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "devDependencies": {
+    "prettier": "^2.0.2"
+  },
+  "dependencies": {
+    "@psychobolt/react-paperjs": "^0.0.56",
+    "next": "^9.3.2",
+    "paper": "^0.12.4",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  }
+}

@@ -1,0 +1,15 @@
+.controlPanel {
+  display: flex;
+  justify-content: space-between;
+}
+
+.positions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.controles {
+  display: flex;
+  flex-direction: column;
+}
