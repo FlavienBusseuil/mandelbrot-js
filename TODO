@@ -1,12 +1,14 @@
 Draw:
-	☐ Lissage des couleurs
+	✔ Lissage des couleurs @done(20-05-05 16:01)
 	☐ Plus de couleur et choix des couleurs
 
 Compute:
-	☐ Changer le nombre d'itération + seuil au zoom
+	✔ Changer le nombre d'itération + seuil au zoom @done(20-05-05 14:16)
 	☐ Ajouter une fonction stop
 	☐ Améliorer le rendu en //.
 
 UI:
-	☐ Afficher les valeurs exactes de tailles de pixels
+	✔ Afficher les valeurs exactes de tailles de pixels @done(20-05-04 22:11)
 	☐ Rendre le bouton Stop opérationnel
+	☐ auto-zoom
+	☐ copie / paste settings
