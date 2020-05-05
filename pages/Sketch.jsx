@@ -31,18 +31,15 @@ const splitZone = ({ zone, zone: { xmin, xmax, ymin, ymax }, nbSplit = 1 }) => {
 };
 
 const computeMandelbrot = async ({
-  zoom,
-  resolutionX,
-  resolutionY,
+  nbStepX,
+  nbStepY,
   zone: { xmin, xmax, ymin, ymax },
 }) => {
   const points = [];
-  const nbStepsX = ((xmax - xmin) * zoom) / resolutionX;
-  const nbStepsY = ((ymax - ymin) * zoom) / resolutionY;
-  const stepX = (xmax - xmin) / nbStepsX;
-  const stepY = (ymax - ymin) / nbStepsY;
-  for (let i = 0; i < nbStepsX; i++) {
-    for (let j = 0; j < nbStepsY; j++) {
+  const stepX = (xmax - xmin) / nbStepX;
+  const stepY = (ymax - ymin) / nbStepY;
+  for (let i = 0; i < nbStepX; i++) {
+    for (let j = 0; j < nbStepY; j++) {
       const x = xmin + i * stepX;
       const y = ymin + j * stepY;
       points.push([x, y, mandelbrot([x, y], 20, 2)]);
@@ -54,21 +51,23 @@ const computeMandelbrot = async ({
 const drawMandelbrot = async ({
   points,
   zoom,
-  pixelW,
-  pixelH,
+  cellW,
+  cellH,
   isDebugging = false,
 }) => {
-  const xOffset = pixelW + 1 / zoom;
-  const yOffset = pixelH + 1 / zoom;
   points.forEach(([x, y, i], index) => {
     const path = new Path.Rectangle(
       new Point(x, y),
-      new Point(x + xOffset, y + yOffset)
+      new Point(x + cellW, y + cellH)
     );
-    path.fillColor = new Color(i > 20 ? i / 20 : 0, 0, i < 20 ? i / 20 : 0);
+    const cellColor = new Color(i > 20 ? i / 20 : 0, 0, i < 20 ? i / 20 : 0);
+    path.fillColor = cellColor;
     if (isDebugging) {
       path.strokeWidth = 1 / zoom;
       path.strokeColor = new Color(1, 0, 0);
+    } else {
+      path.strokeWidth = 1 / zoom;
+      path.strokeColor = cellColor;
     }
   });
   await wait(0);
@@ -77,26 +76,34 @@ const drawMandelbrot = async ({
 const computeAndDrawMandelbrot = async ({
   zoom,
   zone,
-  finalPixelSize,
+  finalCellSize,
   depth = 1,
   level = 0,
   setIsComputing,
   isDebugging = false,
 }) => {
-  const resolutionX = finalPixelSize * Math.pow(4, depth - level);
-  const resolutionY = finalPixelSize * Math.pow(4, depth - level);
+  const zoneW = (zone.xmax - zone.xmin) * zoom;
+  const zoneH = (zone.ymax - zone.ymin) * zoom;
+  const nbCellX = Math.trunc(
+    zoneW / (finalCellSize * Math.pow(2, depth - level))
+  );
+  const nbCellY = Math.trunc(
+    zoneH / (finalCellSize * Math.pow(2, depth - level))
+  );
+  const cellW = zoneW / nbCellX;
+  const cellH = zoneH / nbCellY;
+
   const layer = new Layer();
   const points = await computeMandelbrot({
-    zoom,
-    resolutionX,
-    resolutionY,
+    nbStepX: nbCellX,
+    nbStepY: nbCellY,
     zone,
   });
   await drawMandelbrot({
     points,
     zoom,
-    pixelW: resolutionX / zoom,
-    pixelH: resolutionY / zoom,
+    cellW: cellW / zoom,
+    cellH: cellH / zoom,
     isDebugging,
   });
 
@@ -113,12 +120,12 @@ const computeAndDrawMandelbrot = async ({
     const zones = splitZone({ zone });
     await Promise.all(
       zones.map(async (zonePart, i) => {
-        await wait(250 * i);
+        await wait(100 * i);
         await computeAndDrawMandelbrot({
           zoom,
           zone: zonePart,
           depth,
-          finalPixelSize,
+          finalCellSize,
           level: level + 1,
           isDebugging,
         });
@@ -135,7 +142,7 @@ const computeAndDrawMandelbrot = async ({
 const Sketch = () => {
   const [depth, setDepth] = useState(0); // 1
   const [zoom, setZoom] = useState(250);
-  const [finalPixelSize, setFinalPixelSize] = useState(10);
+  const [finalCellSize, setFinalCellSize] = useState(10);
   const [zone, setZone] = useState({
     xmin: -2.25,
     xmax: 1.25,
@@ -194,13 +201,13 @@ const Sketch = () => {
     setIsComputing(true);
     computeAndDrawMandelbrot({
       zoom,
-      finalPixelSize,
+      finalCellSize,
       zone,
       depth,
       setIsComputing,
       isDebugging,
     });
-  }, [finalPixelSize, zone, zoom, depth, isDebugging]);
+  }, [finalCellSize, zone, zoom, depth, isDebugging]);
 
   const handleSetZone = (event) => {
     event.preventDefault();
@@ -219,11 +226,7 @@ const Sketch = () => {
 
   return (
     <>
-      <canvas
-        style={{ width: "100%", height: "100%", border: "1px solid black" }}
-        id="mandel-view"
-        resize="true"
-      ></canvas>
+      <canvas className={styles.canvas} id="mandel-view" resize="true"></canvas>
       <div className={styles.controlPanel}>
         <div className={styles.controles}>
           <div>
@@ -236,16 +239,16 @@ const Sketch = () => {
             <button onClick={() => setDepth(depth + 1)}>+</button>
           </div>
           <div>
-            Pixel size:{" "}
-            <button onClick={() => setFinalPixelSize(finalPixelSize - 1)}>
+            Approx. cell. size (px):{" "}
+            <button onClick={() => setFinalCellSize(finalCellSize - 1)}>
               -
             </button>
             <input
               type="text"
-              value={finalPixelSize}
-              onChange={({ target: { value } }) => setFinalPixelSize(value)}
+              value={finalCellSize}
+              onChange={({ target: { value } }) => setFinalCellSize(value)}
             />
-            <button onClick={() => setFinalPixelSize(finalPixelSize + 1)}>
+            <button onClick={() => setFinalCellSize(finalCellSize + 1)}>
               +
             </button>
           </div>

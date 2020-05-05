@@ -1,0 +1,12 @@
+Draw:
+	☐ Lissage des couleurs
+	☐ Plus de couleur et choix des couleurs
+
+Compute:
+	☐ Changer le nombre d'itération + seuil au zoom
+	☐ Ajouter une fonction stop
+	☐ Améliorer le rendu en //.
+
+UI:
+	☐ Afficher les valeurs exactes de tailles de pixels
+	☐ Rendre le bouton Stop opérationnel
