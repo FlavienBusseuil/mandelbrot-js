@@ -168,7 +168,7 @@ const Sketch = () => {
     ymax: 1.5,
   });
   const [isDebugging, setIsDebugging] = useState(false);
-  const [isComputing, setIsComputing] = useState(false);
+  const [isComputing, setIsComputing] = useState(true);
   const [nbIteration, setNbIteration] = useState(200);
   const [threshold, setThreshold] = useState(2);
 
@@ -205,11 +205,16 @@ const Sketch = () => {
         ymin: firstCorner.y,
         ymax: point.y,
       });
+      setIsComputing(true);
     };
   }, [zoom]);
 
   // re-compute and draw
   useEffect(() => {
+    if (!isComputing) {
+      return;
+    }
+
     const center = new Point(
       (zone.xmin + zone.xmax) / 2.0,
       (zone.ymin + zone.ymax) / 2.0
@@ -231,7 +236,7 @@ const Sketch = () => {
       nbIteration,
       threshold,
     });
-  }, [finalCellSize, zone, zoom, depth, isDebugging, nbIteration, threshold]);
+  }, [isComputing, isDebugging]);
 
   const handleSetZone = (event) => {
     event.preventDefault();
@@ -245,7 +250,7 @@ const Sketch = () => {
 
   const handleSetZoom = (event) => {
     event.preventDefault();
-    setZoom(Number(zoomRef.current.value));
+    setIsComputing(true);
   };
 
   return (
@@ -253,53 +258,92 @@ const Sketch = () => {
       <canvas className={styles.canvas} id="mandel-view" resize="true"></canvas>
       <div className={styles.controlPanel}>
         <div className={styles.controles}>
-          <div>
-            <button onClick={() => setNbIteration(nbIteration - 1)}>-</button>
-            <input
-              type="text"
-              value={nbIteration}
-              onChange={({ target: { value } }) => setNbIteration(value)}
-            />
-            <button onClick={() => setNbIteration(nbIteration + 1)}>+</button>{" "}
-            Iteration
-          </div>
-          <div>
-            <button onClick={() => setThreshold(threshold - 1)}>-</button>
-            <input
-              type="text"
-              value={threshold}
-              onChange={({ target: { value } }) => setThreshold(value)}
-            />
-            <button onClick={() => setThreshold(threshold + 1)}>+</button>{" "}
-            Threshold
-          </div>
-          <div>
-            <button onClick={() => setDepth(depth - 1)}>-</button>
-            <input
-              type="text"
-              value={depth}
-              onChange={({ target: { value } }) => setDepth(value)}
-            />
-            <button onClick={() => setDepth(depth + 1)}>+</button> Depth
-          </div>
-          <div>
-            <button onClick={() => setFinalCellSize(finalCellSize - 1)}>
-              -
-            </button>
-            <input
-              type="text"
-              value={finalCellSize}
-              onChange={({ target: { value } }) => setFinalCellSize(value)}
-            />
-            <button onClick={() => setFinalCellSize(finalCellSize + 1)}>
-              +
-            </button>{" "}
-            Approx. cell. size in px (real w: {realCellSize.cellW}, h:{" "}
-            {realCellSize.cellH})
-          </div>
           <form onSubmit={handleSetZoom}>
-            <input ref={zoomRef} type="text" defaultValue={zoom} />
-            <button>go</button> Zoom
+            <div>
+              <button
+                type="button"
+                onClick={() => setNbIteration(nbIteration - 1)}
+              >
+                -
+              </button>
+              <input
+                type="text"
+                value={nbIteration}
+                onChange={({ target: { value } }) =>
+                  setNbIteration(Number(value))
+                }
+              />
+              <button
+                type="button"
+                onClick={() => setNbIteration(nbIteration + 1)}
+              >
+                +
+              </button>{" "}
+              Iteration
+            </div>
+            <div>
+              <button type="button" onClick={() => setThreshold(threshold - 1)}>
+                -
+              </button>
+              <input
+                type="text"
+                value={threshold}
+                onChange={({ target: { value } }) =>
+                  setThreshold(Number(value))
+                }
+              />
+              <button type="button" onClick={() => setThreshold(threshold + 1)}>
+                +
+              </button>{" "}
+              Threshold
+            </div>
+            <div>
+              <button type="button" onClick={() => setDepth(depth - 1)}>
+                -
+              </button>
+              <input
+                type="text"
+                value={depth}
+                onChange={({ target: { value } }) => setDepth(Number(value))}
+              />
+              <button type="button" onClick={() => setDepth(depth + 1)}>
+                +
+              </button>{" "}
+              Depth
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => setFinalCellSize(finalCellSize - 1)}
+              >
+                -
+              </button>
+              <input
+                type="text"
+                value={finalCellSize}
+                onChange={({ target: { value } }) =>
+                  setFinalCellSize(Number(value))
+                }
+              />
+              <button
+                type="button"
+                onClick={() => setFinalCellSize(finalCellSize + 1)}
+              >
+                +
+              </button>{" "}
+              Approx. cell. size in px (real w: {realCellSize.cellW}, h:{" "}
+              {realCellSize.cellH})
+            </div>
+            <div>
+              <input
+                ref={zoomRef}
+                type="text"
+                value={zoom}
+                onChange={({ target: { value } }) => setZoom(Number(value))}
+              />{" "}
+              Zoom
+            </div>
+            <input type="submit" value="go" />
           </form>
           <button onClick={() => {}} disabled={isComputing}>
             stop
