@@ -81,6 +81,15 @@ const drawMandelbrot = async ({
   await wait(0);
 };
 
+function drawZone({ zone, zoom }) {
+  const path = new Path.Rectangle(
+    new Point(zone.xmin, zone.ymin),
+    new Point(zone.xmax, zone.ymax)
+  );
+  path.strokeWidth = 1 / zoom;
+  path.strokeColor = new Color(0, 1, 0);
+}
+
 const computeAndDrawMandelbrot = async ({
   zoom,
   zone,
@@ -101,7 +110,6 @@ const computeAndDrawMandelbrot = async ({
   const cellW = zoneW / nbCellX;
   const cellH = zoneH / nbCellY;
 
-  const layer = new Layer();
   const points = await computeMandelbrot({
     nbStepX: nbCellX,
     nbStepY: nbCellY,
@@ -109,6 +117,8 @@ const computeAndDrawMandelbrot = async ({
     nbIteration,
     threshold,
   });
+
+  const layer = new Layer();
   await drawMandelbrot({
     points,
     zoom,
@@ -117,21 +127,20 @@ const computeAndDrawMandelbrot = async ({
     isDebugging,
     nbIteration,
   });
+  const raster = layer.rasterize(300 * zoom, false);
 
   if (isDebugging) {
-    const path = new Path.Rectangle(
-      new Point(zone.xmin, zone.ymin),
-      new Point(zone.xmax, zone.ymax)
-    );
-    path.strokeWidth = 1 / zoom;
-    path.strokeColor = new Color(0, 1, 0);
+    drawZone({ zone, zoom });
   }
+
+  layer.removeChildren();
+  layer.addChild(raster);
 
   if (level < depth) {
     const zones = splitZone({ zone });
     await Promise.all(
       zones.map(async (zonePart, i) => {
-        await wait(100 * i);
+        await wait(10 * i);
         await computeAndDrawMandelbrot({
           zoom,
           zone: zonePart,
@@ -144,7 +153,7 @@ const computeAndDrawMandelbrot = async ({
         });
       })
     );
-    layer.removeChildren();
+    layer.remove();
   }
 
   if (level === 0) {
@@ -343,11 +352,9 @@ const Sketch = () => {
               />{" "}
               Zoom
             </div>
-            <input type="submit" value="go" />
+            <input type="submit" value="go" disabled={isComputing} />
           </form>
-          <button onClick={() => {}} disabled={isComputing}>
-            stop
-          </button>
+          <button onClick={() => {}}>stop</button>
           <label>
             <input
               type="checkbox"

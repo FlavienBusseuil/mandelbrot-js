@@ -1,12 +1,12 @@
 Draw:
 	✔ Lissage des couleurs @done(20-05-05 16:01)
-	☐ Plus de couleur et choix des couleurs
+	☐ Plus de choix et combinaisons de couleurs
 
 Compute:
 	✔ Changer le nombre d'itération + seuil au zoom @done(20-05-05 14:16)
 	☐ Ajouter une fonction stop
 	☐ Améliorer le rendu en //.
-	☐ Améliorer la rapidité de la select zone
+	✔ Améliorer la rapidité de la select zone @done(20-05-07 14:15)
 
 UX:
 	✔ Afficher les valeurs exactes de tailles de pixels @done(20-05-04 22:11)
