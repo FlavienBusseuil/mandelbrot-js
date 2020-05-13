@@ -1684,6 +1684,11 @@ camelcase@5.3.1, camelcase@^5.3.1:
   resolved "https://registry.yarnpkg.com/camelcase/-/camelcase-5.3.1.tgz#e3c9b31569e106811df242f715725a1f4c494320"
   integrity sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==
 
+cancellationtoken@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/cancellationtoken/-/cancellationtoken-2.0.1.tgz#be6f1833aca4f5a67c9c7334853a08f16ced6156"
+  integrity sha512-FVCOyTdjFtlhOHaF0R7PAOL0btq+dyhXUvIGtvJ7pr4wd4R31mdlX3ODTDaVk5R08+Fm+MSHwGA5BJH99sNYdQ==
+
 caniuse-lite@^1.0.30000981, caniuse-lite@^1.0.30001017, caniuse-lite@^1.0.30001035, caniuse-lite@^1.0.30001036:
   version "1.0.30001038"
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001038.tgz#44da3cbca2ab6cb6aa83d1be5d324e17f141caff"
