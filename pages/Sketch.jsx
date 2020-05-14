@@ -2,31 +2,10 @@ import CancellationToken from "cancellationtoken";
 import paper, { Color, Layer, Path, Point, Group } from "paper";
 import React, { useEffect, useRef, useState } from "react";
 import { easeOutQuint } from "../utils/easing";
-import { mandelbrot } from "../utils/mandelbrot";
+import { mandelbrotZone } from "../utils/mandelbrot";
 import { splitZone } from "../utils/splitZone";
 import { wait } from "../utils/wait";
-import styles from "./Sketch.module.css";
-
-const computeMandelbrot = async ({
-	nbStepX,
-	nbStepY,
-	zone: { xmin, xmax, ymin, ymax },
-	nbIteration,
-	threshold,
-}) => {
-	const points = [];
-	const stepX = (xmax - xmin) / nbStepX;
-	const stepY = (ymax - ymin) / nbStepY;
-	for (let i = 0; i < nbStepX; i++) {
-		for (let j = 0; j < nbStepY; j++) {
-			const x = xmin + i * stepX;
-			const y = ymin + j * stepY;
-			points.push([x, y, mandelbrot([x, y], nbIteration, threshold)]);
-		}
-	}
-	await wait(10);
-	return points;
-};
+import styles from "./Sketch.module.scss";
 
 function drawZone({ zone, transform: { zoom, translation } }) {
 	new Path.Rectangle({
@@ -117,16 +96,15 @@ const computeAndDrawMandelbrot = async ({
 	if (token.isCancelled) {
 		return;
 	}
-
 	const zoneW = (zone.xmax - zone.xmin) * zoom;
 	const zoneH = (zone.ymax - zone.ymin) * zoom;
 	const levelCellSize = finalCellSize * Math.pow(2, depth - level);
-	const nbCellX = Math.trunc(zoneW / levelCellSize);
-	const nbCellY = Math.trunc(zoneH / levelCellSize);
+	const nbCellX = Math.trunc(zoneW / levelCellSize) || 1;
+	const nbCellY = Math.trunc(zoneH / levelCellSize) || 1;
 	const cellW = zoneW / nbCellX;
 	const cellH = zoneH / nbCellY;
 
-	const points = await computeMandelbrot({
+	const points = await mandelbrotZone({
 		nbStepX: nbCellX,
 		nbStepY: nbCellY,
 		zone,
@@ -147,10 +125,9 @@ const computeAndDrawMandelbrot = async ({
 	});
 
 	if (level < depth) {
-		const zones = splitZone({ zone });
 		await Promise.all(
-			zones.map(async (zonePart) => {
-				await computeAndDrawMandelbrot({
+			splitZone({ zone }).map((zonePart) =>
+				computeAndDrawMandelbrot({
 					transform: { zoom, translation },
 					zone: zonePart,
 					depth,
@@ -161,9 +138,12 @@ const computeAndDrawMandelbrot = async ({
 					threshold,
 					token,
 					setRealCellSize,
-				});
-			})
+				})
+			)
 		);
+		if (token.isCancelled) {
+			return;
+		}
 		layer.remove();
 	}
 
@@ -185,7 +165,7 @@ function getTranslation({ zone, zoom }) {
 }
 
 const Sketch = () => {
-	const [depth, setDepth] = useState(0);
+	const [depth, setDepth] = useState(4);
 	const [zoom, setZoom] = useState(250);
 	const [finalCellSize, setFinalCellSize] = useState(4);
 	const [realCellSize, setRealCellSize] = useState({
@@ -199,10 +179,10 @@ const Sketch = () => {
 		ymax: 1.5,
 	});
 	const [isDebugging, setIsDebugging] = useState(false);
-	const [isComputing, setIsComputing] = useState(true);
+	const [isComputing, setIsComputing] = useState(false);
 	const [nbIteration, setNbIteration] = useState(200);
 	const [threshold, setThreshold] = useState(2);
-	const [{ cancel }, setCancellationToken] = useState({});
+	const [{ cancel, token }, setCancellationToken] = useState({});
 
 	const xminRef = useRef(null);
 	const xmaxRef = useRef(null);
@@ -210,20 +190,27 @@ const Sketch = () => {
 	const ymaxRef = useRef(null);
 	const zoomRef = useRef(null);
 
-	// init
+	// Init
 	useEffect(() => {
+		// Init Paperjs with canvas
 		paper.setup(document.getElementById("mandel-view"));
+		// Init cancellation token
+		setCancellationToken(CancellationToken.create());
+		// Start computing
+		setIsComputing(true);
 	}, []);
 
-	// draw user zone
+	// Handle user zone drawing
 	useEffect(() => {
 		let firstCorner, userLayer;
 		const translation = getTranslation({ zone, zoom });
 
-		paper.view.onMouseDown = ({ point }) => {
+		paper.view.onMouseDown = async ({ point }) => {
 			userLayer = new Layer({});
 			// Add the mouse down position
 			firstCorner = point;
+			cancel();
+			setIsComputing(false);
 		};
 		paper.view.onMouseDrag = ({ point }) => {
 			paper.project.activeLayer.removeChildren();
@@ -243,10 +230,10 @@ const Sketch = () => {
 				xmax: (secondCorner.x - translation.x) / zoom,
 				ymax: (secondCorner.y - translation.y) / zoom,
 			});
-			setIsComputing(true);
 			setCancellationToken(CancellationToken.create());
+			setIsComputing(true);
 		};
-	}, [zone, zoom]);
+	}, [zone, zoom, cancel]);
 
 	// re-compute and draw
 	useEffect(() => {
@@ -254,13 +241,9 @@ const Sketch = () => {
 			return;
 		}
 
-		setIsComputing(true);
 		paper.project.clear();
 
 		const translation = getTranslation({ zone, zoom });
-
-		const { token, ...rest } = CancellationToken.create();
-		setCancellationToken({ token, ...rest });
 
 		computeAndDrawMandelbrot({
 			transform: { zoom, translation },
@@ -276,6 +259,11 @@ const Sketch = () => {
 		});
 	}, [isComputing]);
 
+	const handleSubmit = (event) => {
+		event.preventDefault();
+		setIsComputing(true);
+	};
+
 	const handleSetZone = (event) => {
 		event.preventDefault();
 		setZone({
@@ -286,9 +274,22 @@ const Sketch = () => {
 		});
 	};
 
-	const handleSetZoom = (event) => {
-		event.preventDefault();
-		setIsComputing(true);
+	const handleStop = () => {
+		cancel();
+		setIsComputing(false);
+		setCancellationToken(CancellationToken.create());
+	};
+
+	const handleWheel = ({ deltaY }) => {
+		cancel();
+		setCancellationToken(CancellationToken.create());
+		setIsComputing(false);
+		const newZoom = zoom - Math.trunc(deltaY * ((zoom || 1) / 100));
+		setZoom(newZoom > 1 ? newZoom : 1);
+		(async () => {
+			await wait(100);
+			setIsComputing(true);
+		})();
 	};
 
 	return (
@@ -297,127 +298,134 @@ const Sketch = () => {
 				className={styles.canvas}
 				id="mandel-view"
 				resize="true"
+				onWheel={handleWheel}
 			></canvas>
 			<div className={styles.controlPanel}>
-				<form onSubmit={handleSetZoom} className={styles.controles}>
+				<form onSubmit={handleSubmit} className={styles.controles}>
 					<div>
-						<button
-							type="button"
-							onClick={() => setNbIteration(nbIteration - 1)}
-						>
-							-
-						</button>
-						<input
-							type="text"
-							value={nbIteration}
-							onChange={({ target: { value } }) =>
-								setNbIteration(Number(value))
-							}
-						/>
-						<button
-							type="button"
-							onClick={() => setNbIteration(nbIteration + 1)}
-						>
-							+
-						</button>{" "}
-						Iteration
+						<div>
+							<button
+								type="button"
+								onClick={() => setNbIteration(nbIteration - 1)}
+							>
+								-
+							</button>
+							<input
+								type="text"
+								value={nbIteration}
+								onChange={({ target: { value } }) =>
+									setNbIteration(Number(value))
+								}
+							/>
+							<button
+								type="button"
+								onClick={() => setNbIteration(nbIteration + 1)}
+							>
+								+
+							</button>{" "}
+							Iteration
+						</div>
+						<div>
+							<button
+								type="button"
+								onClick={() => setThreshold(threshold - 1)}
+							>
+								-
+							</button>
+							<input
+								type="text"
+								value={threshold}
+								onChange={({ target: { value } }) =>
+									setThreshold(Number(value))
+								}
+							/>
+							<button
+								type="button"
+								onClick={() => setThreshold(threshold + 1)}
+							>
+								+
+							</button>{" "}
+							Threshold
+						</div>
+						<div>
+							<button
+								type="button"
+								onClick={() => setDepth(depth - 1)}
+							>
+								-
+							</button>
+							<input
+								type="text"
+								value={depth}
+								onChange={({ target: { value } }) =>
+									setDepth(Number(value))
+								}
+							/>
+							<button
+								type="button"
+								onClick={() => setDepth(depth + 1)}
+							>
+								+
+							</button>{" "}
+							Depth
+						</div>
+						<div>
+							<button
+								type="button"
+								onClick={() =>
+									setFinalCellSize(finalCellSize - 1)
+								}
+							>
+								-
+							</button>
+							<input
+								type="text"
+								value={finalCellSize}
+								onChange={({ target: { value } }) =>
+									setFinalCellSize(Number(value))
+								}
+							/>
+							<button
+								type="button"
+								onClick={() =>
+									setFinalCellSize(finalCellSize + 1)
+								}
+							>
+								+
+							</button>{" "}
+							Approx. cell. size in px (real w:{" ~"}
+							{Number(realCellSize.cellW.toFixed(3))}, h:{" ~"}
+							{Number(realCellSize.cellH.toFixed(3))})
+						</div>
 					</div>
 					<div>
-						<button
-							type="button"
-							onClick={() => setThreshold(threshold - 1)}
-						>
-							-
-						</button>
-						<input
-							type="text"
-							value={threshold}
-							onChange={({ target: { value } }) =>
-								setThreshold(Number(value))
-							}
-						/>
-						<button
-							type="button"
-							onClick={() => setThreshold(threshold + 1)}
-						>
-							+
-						</button>{" "}
-						Threshold
+						<div>
+							<input
+								ref={zoomRef}
+								type="text"
+								value={zoom}
+								onChange={({ target: { value } }) =>
+									setZoom(Number(value))
+								}
+							/>{" "}
+							Zoom
+						</div>
+						<label>
+							<input
+								type="checkbox"
+								checked={isDebugging}
+								onChange={() => setIsDebugging(!isDebugging)}
+							/>{" "}
+							Debug Points
+						</label>
+						{isComputing ? (
+							<button type="button" onClick={handleStop}>
+								stop
+							</button>
+						) : (
+							<input type="submit" value="go" />
+						)}
 					</div>
-					<div>
-						<button
-							type="button"
-							onClick={() => setDepth(depth - 1)}
-						>
-							-
-						</button>
-						<input
-							type="text"
-							value={depth}
-							onChange={({ target: { value } }) =>
-								setDepth(Number(value))
-							}
-						/>
-						<button
-							type="button"
-							onClick={() => setDepth(depth + 1)}
-						>
-							+
-						</button>{" "}
-						Depth
-					</div>
-					<div>
-						<button
-							type="button"
-							onClick={() => setFinalCellSize(finalCellSize - 1)}
-						>
-							-
-						</button>
-						<input
-							type="text"
-							value={finalCellSize}
-							onChange={({ target: { value } }) =>
-								setFinalCellSize(Number(value))
-							}
-						/>
-						<button
-							type="button"
-							onClick={() => setFinalCellSize(finalCellSize + 1)}
-						>
-							+
-						</button>{" "}
-						Approx. cell. size in px (real w: {realCellSize.cellW},
-						h: {realCellSize.cellH})
-					</div>
-					<div>
-						<input
-							ref={zoomRef}
-							type="text"
-							value={zoom}
-							onChange={({ target: { value } }) =>
-								setZoom(Number(value))
-							}
-						/>{" "}
-						Zoom
-					</div>
-					<label>
-						<input
-							type="checkbox"
-							checked={isDebugging}
-							onChange={() => setIsDebugging(!isDebugging)}
-						/>{" "}
-						Debug Points
-					</label>
-					<input type="submit" value="go" disabled={isComputing} />
-					<button
-						type="button"
-						onClick={() => {
-							cancel();
-							setIsComputing(false);
-						}}
-					>
-						stop
-					</button>
 				</form>
 				<div className={styles.positions}>
 					<label>

@@ -17,5 +17,9 @@
 
 .controles {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	> div {
+		display: flex;
+		flex-direction: column;
+	}
 }

@@ -26,4 +26,24 @@ const mandelbrot = (complex, maxIterations, threshold) => {
 	return i;
 };
 
-export { mandelbrot, isInMandelbrot };
+const mandelbrotZone = async ({
+	nbStepX,
+	nbStepY,
+	zone: { xmin, xmax, ymin, ymax },
+	nbIteration,
+	threshold,
+}) => {
+	const points = [];
+	const stepX = (xmax - xmin) / nbStepX;
+	const stepY = (ymax - ymin) / nbStepY;
+	for (let i = 0; i < nbStepX; i++) {
+		for (let j = 0; j < nbStepY; j++) {
+			const x = xmin + i * stepX;
+			const y = ymin + j * stepY;
+			points.push([x, y, mandelbrot([x, y], nbIteration, threshold)]);
+		}
+	}
+	return points;
+};
+
+export { mandelbrotZone, mandelbrot, isInMandelbrot };
