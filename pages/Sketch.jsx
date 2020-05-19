@@ -295,7 +295,10 @@ const Sketch = () => {
 		cancel();
 		setCancellationToken(CancellationToken.create());
 		setIsComputing(false);
-		const newZoom = zoom - Math.trunc(deltaY * ((zoom || 1) / 100));
+		const deltaZoom = Math.trunc(
+			(Math.max(Math.min(deltaY, 100), -100) * zoom) / 1000
+		);
+		const newZoom = zoom - deltaZoom;
 		setZoom(newZoom > 1 ? newZoom : 1);
 		(async () => {
 			await wait(100);
