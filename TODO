@@ -8,6 +8,8 @@ Compute:
 	✔ Améliorer la profondeur du rendu @done(20-05-12 23:34)
 	✔ Améliorer la rapidité de la select zone @done(20-05-07 14:15)
 	☐ Améliorer le rendu en // (service worker)
+	☐ Using bignumber.js or equivalent
+	☐ Compute image server-side
 
 UX:
 	✔ Afficher les valeurs exactes de tailles de pixels @done(20-05-04 22:11)

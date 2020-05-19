@@ -1,4 +1,4 @@
-import { add, multiply, dist } from "./complex";
+import { add, multiply, distSquare } from "./complex";
 
 const isInMandelbrot = (complex, nbIterations, threshold) => {
 	let mandel = [0, 0];
@@ -6,7 +6,7 @@ const isInMandelbrot = (complex, nbIterations, threshold) => {
 		mandel = add(multiply(mandel, mandel), complex);
 	}
 
-	if (dist(mandel) > threshold) {
+	if (distSquare(mandel) > threshold * threshold) {
 		return false;
 	}
 
@@ -18,7 +18,7 @@ const mandelbrot = (complex, maxIterations, threshold) => {
 	let i;
 	for (i = 0; i < maxIterations; i++) {
 		mandel = add(multiply(mandel, mandel), complex);
-		if (dist(mandel) > threshold) {
+		if (distSquare(mandel) > threshold * threshold) {
 			break;
 		}
 	}

@@ -203,9 +203,10 @@ const Sketch = () => {
 	// Handle user zone drawing
 	useEffect(() => {
 		let firstCorner, userLayer;
-		const translation = getTranslation({ zone, zoom });
 
-		paper.view.onMouseDown = async ({ point }) => {
+		paper.view.onMouseDown = async ({ point, event: { button } }) => {
+			if (button !== 0) return;
+
 			userLayer = new Layer({});
 			// Add the mouse down position
 			firstCorner = point;
@@ -213,7 +214,9 @@ const Sketch = () => {
 			setIsComputing(false);
 		};
 		paper.view.onMouseDrag = ({ point }) => {
-			paper.project.activeLayer.removeChildren();
+			if (!firstCorner) return;
+
+			userLayer.removeChildren();
 			new Path.Rectangle({
 				from: firstCorner,
 				to: point,
@@ -221,8 +224,16 @@ const Sketch = () => {
 				strokeWidth: 1,
 			});
 		};
-		paper.view.onMouseUp = ({ point: secondCorner }) => {
+		paper.view.onMouseUp = ({ point: secondCorner, event: { button } }) => {
+			if (button !== 0 || !firstCorner) return;
+
 			userLayer.remove();
+
+			if (secondCorner.equals(firstCorner)) {
+				return;
+			}
+
+			const translation = getTranslation({ zone, zoom });
 			// Add the mouse up position:
 			setZone({
 				xmin: (firstCorner.x - translation.x) / zoom,

@@ -7,4 +7,6 @@ const multiply = (c1, c2) => [
 
 const dist = (c1) => Math.sqrt(c1[0] * c1[0] + c1[1] * c1[1]);
 
-export { add, multiply, dist };
+const distSquare = (c1) => c1[0] * c1[0] + c1[1] * c1[1];
+
+export { add, multiply, dist, distSquare };
