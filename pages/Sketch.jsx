@@ -1,11 +1,15 @@
-import CancellationToken from "cancellationtoken";
-import paper, { Color, Layer, Path, Point, Group } from "paper";
-import React, { useEffect, useRef, useState } from "react";
+import { Layout } from "antd";
+import paper, { Color, Layer, Path, Point } from "paper";
+import React, { useEffect, useReducer, useState } from "react";
+import ControlPanel from "../components/ControlPanel";
 import { easeOutQuint } from "../utils/easing";
+import JobQueue from "../utils/JobQueue";
 import { mandelbrotZone } from "../utils/mandelbrot";
 import { splitZone } from "../utils/splitZone";
 import { wait } from "../utils/wait";
 import styles from "./Sketch.module.scss";
+
+const { Sider, Content } = Layout;
 
 function drawZone({ zone, transform: { zoom, translation } }) {
 	new Path.Rectangle({
@@ -21,16 +25,24 @@ function drawZone({ zone, transform: { zoom, translation } }) {
 	});
 }
 
+function getTranslation({ zone, zoom }) {
+	const center = new Point(
+		((zone.xmin + zone.xmax) * zoom) / 2.0,
+		((zone.ymin + zone.ymax) * zoom) / 2.0
+	);
+
+	return paper.view.center.subtract(center);
+}
+
 const drawMandelbrot = async ({
 	points,
 	cellW,
 	cellH,
 	isDebugging = false,
 	nbIteration,
-	layer,
 	transform: { zoom, translation },
 }) => {
-	points.forEach(([x, y, i], index) => {
+	points.forEach(([x, y, i]) => {
 		const xToViewSpace = x * zoom + translation.x,
 			yToViewSpace = y * zoom + translation.y;
 		const cellColor = new Color(
@@ -42,7 +54,7 @@ const drawMandelbrot = async ({
 			from: new Point(xToViewSpace, yToViewSpace),
 			to: new Point(xToViewSpace + cellW, yToViewSpace + cellH),
 			fillColor: cellColor,
-			strokeColor: isDebugging ? new Color(1, 0, 0) : cellColor,
+			strokeColor: isDebugging ? new Color(1, 0, 0, 0.25) : cellColor,
 		});
 	});
 };
@@ -80,29 +92,28 @@ const renderMandelbrot = async ({
 	await wait(10);
 };
 
-const computeAndDrawMandelbrot = async ({
-	transform: { zoom, translation },
-	zone,
-	finalCellSize,
+const computeAndDrawMandelbrotRec = async ({
 	depth = 1,
-	level = 0,
-	setIsComputing,
-	setRealCellSize,
+	targetCellSize,
 	isDebugging = false,
+	level = 0,
 	nbIteration,
 	threshold,
 	token,
+	transform: { zoom, translation },
+	zone,
 }) => {
-	if (token.isCancelled) {
-		return;
-	}
 	const zoneW = (zone.xmax - zone.xmin) * zoom;
 	const zoneH = (zone.ymax - zone.ymin) * zoom;
-	const levelCellSize = finalCellSize * Math.pow(2, depth - level);
+	const levelCellSize = targetCellSize * Math.pow(2, depth - level);
 	const nbCellX = Math.trunc(zoneW / levelCellSize) || 1;
 	const nbCellY = Math.trunc(zoneH / levelCellSize) || 1;
 	const cellW = zoneW / nbCellX;
 	const cellH = zoneH / nbCellY;
+
+	if (token.isCancelled) {
+		return { cellW, cellH };
+	}
 
 	const points = await mandelbrotZone({
 		nbStepX: nbCellX,
@@ -125,83 +136,140 @@ const computeAndDrawMandelbrot = async ({
 	});
 
 	if (level < depth) {
-		await Promise.all(
+		const [realCellSize] = await Promise.all(
 			splitZone({ zone }).map((zonePart) =>
-				computeAndDrawMandelbrot({
-					transform: { zoom, translation },
-					zone: zonePart,
+				computeAndDrawMandelbrotRec({
 					depth,
-					finalCellSize,
-					level: level + 1,
+					targetCellSize,
 					isDebugging,
+					level: level + 1,
 					nbIteration,
 					threshold,
 					token,
-					setRealCellSize,
+					transform: { zoom, translation },
+					zone: zonePart,
 				})
 			)
 		);
 		if (token.isCancelled) {
-			return;
+			return realCellSize;
 		}
 		layer.remove();
+		return realCellSize;
 	}
 
-	if (level === 0) {
-		setIsComputing(false);
-	}
-	if (level === depth) {
-		setRealCellSize({ cellW, cellH });
-	}
+	return { cellW, cellH };
 };
 
-function getTranslation({ zone, zoom }) {
-	const center = new Point(
-		((zone.xmin + zone.xmax) * zoom) / 2.0,
-		((zone.ymin + zone.ymax) * zoom) / 2.0
-	);
+async function computeAndDrawMandelbrot({
+	depth,
+	targetCellSize,
+	isDebugging,
+	nbIteration,
+	setIsComputing,
+	setRealCellSize,
+	token,
+	threshold,
+	zone,
+	zoom,
+}) {
+	setIsComputing(true);
 
-	return paper.view.center.subtract(center);
+	paper.project.clear();
+
+	const translation = getTranslation({ zone, zoom });
+
+	const { cellW, cellH } = await computeAndDrawMandelbrotRec({
+		depth,
+		targetCellSize,
+		isDebugging,
+		nbIteration,
+		setIsComputing,
+		setRealCellSize,
+		threshold,
+		token,
+		transform: { zoom, translation },
+		zone,
+	});
+
+	if (!token.isCancelled || !JobQueue.hasRunningJob()) {
+		setRealCellSize({ cellW, cellH });
+		setIsComputing(false);
+	}
+}
+
+function reduceParams(params, newParams) {
+	return { ...params, ...newParams };
 }
 
 const Sketch = () => {
-	const [depth, setDepth] = useState(4);
-	const [zoom, setZoom] = useState(250);
-	const [finalCellSize, setFinalCellSize] = useState(4);
+	const [
+		{
+			depth,
+			targetCellSize,
+			isDebugging,
+			nbIteration,
+			threshold,
+			zone,
+			zoom,
+		},
+		dispatchParams,
+	] = useReducer(reduceParams, {
+		depth: 4,
+		targetCellSize: 4,
+		isDebugging: false,
+		nbIteration: 200,
+		threshold: 2,
+		zone: {
+			xmin: -2.25,
+			xmax: 1.25,
+			ymin: -1.5,
+			ymax: 1.5,
+		},
+		zoom: 250,
+	});
 	const [realCellSize, setRealCellSize] = useState({
-		cellW: finalCellSize,
-		cellH: finalCellSize,
+		cellW: 4,
+		cellH: 4,
 	});
-	const [zone, setZone] = useState({
-		xmin: -2.25,
-		xmax: 1.25,
-		ymin: -1.5,
-		ymax: 1.5,
-	});
-	const [isDebugging, setIsDebugging] = useState(false);
+	const [isLoading, setIsLoading] = useState(true);
 	const [isComputing, setIsComputing] = useState(false);
-	const [nbIteration, setNbIteration] = useState(200);
-	const [threshold, setThreshold] = useState(2);
-	const [{ cancel, token }, setCancellationToken] = useState({});
 
-	const xminRef = useRef(null);
-	const xmaxRef = useRef(null);
-	const yminRef = useRef(null);
-	const ymaxRef = useRef(null);
-	const zoomRef = useRef(null);
-
-	// Init
+	// Initialize UI
 	useEffect(() => {
+		setIsLoading(false);
+	}, []);
+
+	// Initialize Sketch
+	useEffect(() => {
+		if (isLoading) {
+			return;
+		}
+
 		// Init Paperjs with canvas
 		paper.setup(document.getElementById("mandel-view"));
-		// Init cancellation token
-		setCancellationToken(CancellationToken.create());
 		// Start computing
-		setIsComputing(true);
-	}, []);
+		JobQueue.append(({ token }) =>
+			computeAndDrawMandelbrot({
+				depth,
+				isDebugging,
+				nbIteration,
+				setIsComputing,
+				setRealCellSize,
+				targetCellSize,
+				token,
+				threshold,
+				zone,
+				zoom,
+			})
+		);
+	}, [isLoading]);
 
 	// Handle user zone drawing
 	useEffect(() => {
+		if (isLoading) {
+			return;
+		}
 		let firstCorner, userLayer;
 
 		paper.view.onMouseDown = async ({ point, event: { button } }) => {
@@ -210,8 +278,7 @@ const Sketch = () => {
 			userLayer = new Layer({});
 			// Add the mouse down position
 			firstCorner = point;
-			cancel();
-			setIsComputing(false);
+			JobQueue.cancelPreviousJobs();
 		};
 		paper.view.onMouseDrag = ({ point }) => {
 			if (!firstCorner) return;
@@ -234,253 +301,106 @@ const Sketch = () => {
 			}
 
 			const translation = getTranslation({ zone, zoom });
-			// Add the mouse up position:
-			setZone({
+			const newZone = {
 				xmin: (firstCorner.x - translation.x) / zoom,
 				ymin: (firstCorner.y - translation.y) / zoom,
 				xmax: (secondCorner.x - translation.x) / zoom,
 				ymax: (secondCorner.y - translation.y) / zoom,
+			};
+			// Add the mouse up position:
+			dispatchParams({
+				zone: newZone,
 			});
-			setCancellationToken(CancellationToken.create());
-			setIsComputing(true);
+			// Start computing
+			JobQueue.append(({ token }) =>
+				computeAndDrawMandelbrot({
+					depth,
+					isDebugging,
+					nbIteration,
+					setIsComputing,
+					setRealCellSize,
+					targetCellSize,
+					token,
+					threshold,
+					zone: newZone,
+					zoom,
+				})
+			);
 		};
-	}, [zone, zoom, cancel]);
+	}, [zone, zoom, isLoading]);
 
-	// re-compute and draw
-	useEffect(() => {
-		if (!isComputing) {
-			return;
-		}
-
-		paper.project.clear();
-
-		const translation = getTranslation({ zone, zoom });
-
-		computeAndDrawMandelbrot({
-			transform: { zoom, translation },
-			finalCellSize,
-			zone,
-			depth,
-			setIsComputing,
-			setRealCellSize,
-			isDebugging,
-			nbIteration,
-			threshold,
-			token,
-		});
-	}, [isComputing]);
-
-	const handleSubmit = (event) => {
-		event.preventDefault();
-		setIsComputing(true);
-	};
-
-	const handleSetZone = (event) => {
-		event.preventDefault();
-		setZone({
-			xmin: Number(xminRef.current.value),
-			xmax: Number(xmaxRef.current.value),
-			ymin: Number(yminRef.current.value),
-			ymax: Number(ymaxRef.current.value),
-		});
-	};
-
-	const handleStop = () => {
-		cancel();
-		setIsComputing(false);
-		setCancellationToken(CancellationToken.create());
+	const handleCancel = () => {
+		JobQueue.cancelPreviousJobs();
 	};
 
 	const handleWheel = ({ deltaY }) => {
-		cancel();
-		setCancellationToken(CancellationToken.create());
-		setIsComputing(false);
+		JobQueue.cancelPreviousJobs();
+
 		const deltaZoom = Math.trunc(
-			(Math.max(Math.min(deltaY, 100), -100) * zoom) / 1000
+			(Math.max(Math.min(deltaY, 100), -100) * zoom) / 500
 		);
 		const newZoom = zoom - deltaZoom;
-		setZoom(newZoom > 1 ? newZoom : 1);
-		(async () => {
-			await wait(100);
-			setIsComputing(true);
-		})();
+		dispatchParams({ zoom: newZoom > 1 ? newZoom : 1 });
+
+		// Start computing
+		JobQueue.append(({ token }) =>
+			computeAndDrawMandelbrot({
+				depth,
+				isDebugging,
+				nbIteration,
+				setIsComputing,
+				setRealCellSize,
+				targetCellSize,
+				token,
+				threshold,
+				zone,
+				zoom: newZoom,
+			})
+		);
+	};
+
+	// re-compute and draw
+	const handleChange = (params) => {
+		dispatchParams(params);
+
+		JobQueue.append(({ token }) =>
+			computeAndDrawMandelbrot({
+				setIsComputing,
+				setRealCellSize,
+				token,
+				...params,
+			})
+		);
 	};
 
 	return (
-		<>
-			<canvas
-				className={styles.canvas}
-				id="mandel-view"
-				resize="true"
-				onWheel={handleWheel}
-			></canvas>
-			<div className={styles.controlPanel}>
-				<form onSubmit={handleSubmit} className={styles.controles}>
-					<div>
-						<div>
-							<button
-								type="button"
-								onClick={() => setNbIteration(nbIteration - 1)}
-							>
-								-
-							</button>
-							<input
-								type="text"
-								value={nbIteration}
-								onChange={({ target: { value } }) =>
-									setNbIteration(Number(value))
-								}
-							/>
-							<button
-								type="button"
-								onClick={() => setNbIteration(nbIteration + 1)}
-							>
-								+
-							</button>{" "}
-							Iteration
-						</div>
-						<div>
-							<button
-								type="button"
-								onClick={() => setThreshold(threshold - 1)}
-							>
-								-
-							</button>
-							<input
-								type="text"
-								value={threshold}
-								onChange={({ target: { value } }) =>
-									setThreshold(Number(value))
-								}
-							/>
-							<button
-								type="button"
-								onClick={() => setThreshold(threshold + 1)}
-							>
-								+
-							</button>{" "}
-							Threshold
-						</div>
-						<div>
-							<button
-								type="button"
-								onClick={() => setDepth(depth - 1)}
-							>
-								-
-							</button>
-							<input
-								type="text"
-								value={depth}
-								onChange={({ target: { value } }) =>
-									setDepth(Number(value))
-								}
-							/>
-							<button
-								type="button"
-								onClick={() => setDepth(depth + 1)}
-							>
-								+
-							</button>{" "}
-							Depth
-						</div>
-						<div>
-							<button
-								type="button"
-								onClick={() =>
-									setFinalCellSize(finalCellSize - 1)
-								}
-							>
-								-
-							</button>
-							<input
-								type="text"
-								value={finalCellSize}
-								onChange={({ target: { value } }) =>
-									setFinalCellSize(Number(value))
-								}
-							/>
-							<button
-								type="button"
-								onClick={() =>
-									setFinalCellSize(finalCellSize + 1)
-								}
-							>
-								+
-							</button>{" "}
-							Approx. cell. size in px (real w:{" ~"}
-							{Number(realCellSize.cellW.toFixed(3))}, h:{" ~"}
-							{Number(realCellSize.cellH.toFixed(3))})
-						</div>
-					</div>
-					<div>
-						<div>
-							<input
-								ref={zoomRef}
-								type="text"
-								value={zoom}
-								onChange={({ target: { value } }) =>
-									setZoom(Number(value))
-								}
-							/>{" "}
-							Zoom
-						</div>
-						<label>
-							<input
-								type="checkbox"
-								checked={isDebugging}
-								onChange={() => setIsDebugging(!isDebugging)}
-							/>{" "}
-							Debug Points
-						</label>
-						{isComputing ? (
-							<button type="button" onClick={handleStop}>
-								stop
-							</button>
-						) : (
-							<input type="submit" value="go" />
-						)}
-					</div>
-				</form>
-				<div className={styles.positions}>
-					<label>
-						xmin:{" "}
-						<input
-							ref={xminRef}
-							type="text"
-							value={zone.xmin}
-							readOnly
-						/>
-					</label>
-					<label>
-						xmax:{" "}
-						<input
-							ref={xmaxRef}
-							type="text"
-							value={zone.xmax}
-							readOnly
-						/>
-					</label>
-					<label>
-						ymin:{" "}
-						<input
-							ref={yminRef}
-							type="text"
-							value={zone.ymin}
-							readOnly
-						/>
-					</label>
-					<label>
-						ymax:{" "}
-						<input
-							ref={ymaxRef}
-							type="text"
-							value={zone.ymax}
-							readOnly
-						/>
-					</label>
-				</div>
-			</div>
-		</>
+		<Layout>
+			<Sider width={300}>
+				<ControlPanel
+					{...{
+						depth,
+						targetCellSize,
+						isComputing,
+						isDebugging,
+						nbIteration,
+						onCancel: handleCancel,
+						onChange: handleChange,
+						realCellSize,
+						threshold,
+						zone,
+						zoom,
+					}}
+				/>
+			</Sider>
+			<Content>
+				<canvas
+					className={styles.canvas}
+					id="mandel-view"
+					resize="true"
+					onWheel={handleWheel}
+				/>
+			</Content>
+		</Layout>
 	);
 };
 
