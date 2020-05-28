@@ -265,6 +265,29 @@ const Sketch = () => {
 		);
 	}, [isLoading]);
 
+	useEffect(() => {
+		if (isLoading) {
+			return;
+		}
+
+		paper.view.onResize = () => {
+			JobQueue.append(({ token }) =>
+				computeAndDrawMandelbrot({
+					depth,
+					isDebugging,
+					nbIteration,
+					setIsComputing,
+					setRealCellSize,
+					targetCellSize,
+					token,
+					threshold,
+					zone,
+					zoom,
+				})
+			);
+		};
+	});
+
 	// Handle user zone drawing
 	useEffect(() => {
 		if (isLoading) {
@@ -334,7 +357,7 @@ const Sketch = () => {
 	};
 
 	const handleWheel = ({ deltaY }) => {
-		JobQueue.cancelPreviousJobs();
+		// JobQueue.cancelPreviousJobs();
 
 		const deltaZoom = Math.trunc(
 			(Math.max(Math.min(deltaY, 100), -100) * zoom) / 500
