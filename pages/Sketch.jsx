@@ -1,6 +1,6 @@
 import { Layout } from "antd";
-import paper, { Color, Layer, Path, Point } from "paper";
-import React, { useEffect, useReducer, useState } from "react";
+import paper, { Color, Layer, Path, Point, Size } from "paper";
+import React, { useEffect, useReducer, useState, useRef } from "react";
 import ControlPanel from "../components/ControlPanel";
 import { easeOutQuint } from "../utils/easing";
 import JobQueue from "../utils/JobQueue";
@@ -209,6 +209,7 @@ const Sketch = () => {
 			targetCellSize,
 			isDebugging,
 			nbIteration,
+			resolution,
 			threshold,
 			zone,
 			zoom,
@@ -219,6 +220,7 @@ const Sketch = () => {
 		targetCellSize: 4,
 		isDebugging: false,
 		nbIteration: 200,
+		resolution: "fullview",
 		threshold: 2,
 		zone: {
 			xmin: -2.25,
@@ -232,20 +234,11 @@ const Sketch = () => {
 		cellW: 4,
 		cellH: 4,
 	});
-	const [isLoading, setIsLoading] = useState(true);
 	const [isComputing, setIsComputing] = useState(false);
-
-	// Initialize UI
-	useEffect(() => {
-		setIsLoading(false);
-	}, []);
+	const canvasRef = useRef(null);
 
 	// Initialize Sketch
 	useEffect(() => {
-		if (isLoading) {
-			return;
-		}
-
 		// Init Paperjs with canvas
 		paper.setup(document.getElementById("mandel-view"));
 		// Start computing
@@ -263,13 +256,10 @@ const Sketch = () => {
 				zoom,
 			})
 		);
-	}, [isLoading]);
+	}, []);
 
+	// On resize
 	useEffect(() => {
-		if (isLoading) {
-			return;
-		}
-
 		paper.view.onResize = () => {
 			JobQueue.append(({ token }) =>
 				computeAndDrawMandelbrot({
@@ -288,11 +278,19 @@ const Sketch = () => {
 		};
 	});
 
-	// Handle user zone drawing
+	// Change resolution
 	useEffect(() => {
-		if (isLoading) {
+		if (resolution === "fullview") {
+			const { offsetWidth, offsetHeight } = canvasRef.current;
+			paper.view.viewSize = new Size(offsetWidth, offsetHeight);
 			return;
 		}
+		const [width, height] = resolution.split("r")[1].split("x").map(Number);
+		paper.view.viewSize = new Size(width, height);
+	}, [resolution]);
+
+	// Handle user zone drawing
+	useEffect(() => {
 		let firstCorner, userLayer;
 
 		paper.view.onMouseDown = async ({ point, event: { button } }) => {
@@ -350,15 +348,13 @@ const Sketch = () => {
 				})
 			);
 		};
-	}, [zone, zoom, isLoading]);
+	}, [zone, zoom]);
 
 	const handleCancel = () => {
 		JobQueue.cancelPreviousJobs();
 	};
 
 	const handleWheel = ({ deltaY }) => {
-		// JobQueue.cancelPreviousJobs();
-
 		const deltaZoom = Math.trunc(
 			(Math.max(Math.min(deltaY, 100), -100) * zoom) / 500
 		);
@@ -397,7 +393,7 @@ const Sketch = () => {
 	};
 
 	return (
-		<Layout>
+		<Layout hasSider>
 			<Sider width={300}>
 				<ControlPanel
 					{...{
@@ -409,15 +405,17 @@ const Sketch = () => {
 						onCancel: handleCancel,
 						onChange: handleChange,
 						realCellSize,
+						resolution,
 						threshold,
 						zone,
 						zoom,
 					}}
 				/>
 			</Sider>
-			<Content>
+			<Content className={styles.content}>
 				<canvas
-					className={styles.canvas}
+					ref={canvasRef}
+					className={`${styles.canvas} ${styles[resolution]}`}
 					id="mandel-view"
 					resize="true"
 					onWheel={handleWheel}

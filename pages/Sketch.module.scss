@@ -1,5 +1,32 @@
 .canvas {
-	display: block;
 	width: 100%;
 	height: 100%;
+}
+
+.content {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.fullview {
+	border: 0;
+}
+
+.r310x240 {
+	border: 1px solid white;
+	max-width: 310px;
+	max-height: 240px;
+}
+
+.r720x480 {
+	border: 1px solid white;
+	max-width: 720px;
+	max-height: 480px;
+}
+
+.r1280x720 {
+	border: 1px solid white;
+	max-width: 1280px;
+	max-height: 720px;
 }

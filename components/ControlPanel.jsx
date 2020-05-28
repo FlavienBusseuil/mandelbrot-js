@@ -8,11 +8,13 @@ import {
 	InputNumber,
 	Button,
 	Checkbox,
+	Select,
 } from "antd";
 import styles from "./ControlPanel.module.scss";
 
 const { Panel } = Collapse;
 const { Item, useForm } = Form;
+const { Option } = Select;
 
 const ControlPanel = ({
 	realCellSize,
@@ -23,6 +25,7 @@ const ControlPanel = ({
 	targetCellSize,
 	isDebugging,
 	nbIteration,
+	resolution,
 	threshold,
 	zone: { xmin, xmax, ymin, ymax },
 	zoom,
@@ -41,6 +44,7 @@ const ControlPanel = ({
 			isComputing,
 			isDebugging,
 			nbIteration,
+			resolution,
 			targetCellSize,
 			threshold,
 			xmax,
@@ -63,6 +67,7 @@ const ControlPanel = ({
 				isComputing,
 				isDebugging,
 				nbIteration,
+				resolution,
 				targetCellSize,
 				threshold,
 				xmax,
@@ -90,7 +95,7 @@ const ControlPanel = ({
 						</Col>
 					</Row>
 				</Panel>
-				<Panel forceRender header="Positions" key="2">
+				<Panel forceRender header="Location" key="2">
 					<Item label="Zone">
 						<Row>
 							<Col span={12}>
@@ -121,7 +126,15 @@ const ControlPanel = ({
 						<InputNumber />
 					</Item>
 				</Panel>
-				<Panel forceRender header="Draw" key="3">
+				<Panel forceRender header="Render" key="3">
+					<Item label="Resolution" name="resolution">
+						<Select>
+							<Option value="fullview">Full View</Option>
+							<Option value="r310x240">310x240</Option>
+							<Option value="r720x480">720x480</Option>
+							<Option value="r1280x720">1280x720</Option>
+						</Select>
+					</Item>
 					<Item label="Depth" name="depth">
 						<InputNumber min={1} max={10} />
 					</Item>
