@@ -2,28 +2,15 @@ import { Layout } from "antd";
 import paper, { Color, Layer, Path, Point, Size } from "paper";
 import React, { useEffect, useReducer, useState, useRef } from "react";
 import ControlPanel from "../components/ControlPanel";
-import { easeOutQuint } from "../utils/easing";
 import JobQueue from "../utils/JobQueue";
 import { mandelbrotZone } from "../utils/mandelbrot";
 import { splitZone } from "../utils/splitZone";
 import { wait } from "../utils/wait";
 import styles from "./Sketch.module.scss";
+import { drawZone } from "../utils/draw/drawZone";
+import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
 
 const { Sider, Content } = Layout;
-
-function drawZone({ zone, transform: { zoom, translation } }) {
-	new Path.Rectangle({
-		from: new Point(
-			zone.xmin * zoom + translation.x,
-			zone.ymin * zoom + translation.y
-		),
-		to: new Point(
-			zone.xmax * zoom + translation.x,
-			zone.ymax * zoom + translation.y
-		),
-		strokeColor: new Color(0, 1, 0),
-	});
-}
 
 function getTranslation({ zone, zoom }) {
 	const center = new Point(
@@ -33,31 +20,6 @@ function getTranslation({ zone, zoom }) {
 
 	return paper.view.center.subtract(center);
 }
-
-const drawMandelbrot = async ({
-	points,
-	cellW,
-	cellH,
-	isDebugging = false,
-	nbIteration,
-	transform: { zoom, translation },
-}) => {
-	points.forEach(([x, y, i]) => {
-		const xToViewSpace = x * zoom + translation.x,
-			yToViewSpace = y * zoom + translation.y;
-		const cellColor = new Color(
-			0,
-			0,
-			i < nbIteration ? easeOutQuint(i / nbIteration) : 0
-		);
-		new Path.Rectangle({
-			from: new Point(xToViewSpace, yToViewSpace),
-			to: new Point(xToViewSpace + cellW, yToViewSpace + cellH),
-			fillColor: cellColor,
-			strokeColor: isDebugging ? new Color(1, 0, 0, 0.25) : cellColor,
-		});
-	});
-};
 
 const renderMandelbrot = async ({
 	cellH,
