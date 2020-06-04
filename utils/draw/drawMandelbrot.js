@@ -1,5 +1,5 @@
 import { Color, Path, Point } from "paper";
-import { easeOutQuint } from "./easing";
+import { easeOutQuint } from "../easing";
 
 export async function drawMandelbrot({
 	points,

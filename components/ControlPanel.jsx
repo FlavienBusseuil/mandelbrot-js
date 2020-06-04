@@ -31,7 +31,14 @@ const ControlPanel = ({
 	zoom,
 }) => {
 	const [form] = useForm();
-	const handleSubmit = ({ xmin, xmax, ymin, ymax, ...params }) => {
+	const handleSubmit = ({ stop, xmin, xmax, ymin, ymax, ...params }) => {
+		if (stop) {
+			return onCancel({
+				zone: { xmin, xmax, ymin, ymax },
+				...params,
+			});
+		}
+
 		onChange({
 			zone: { xmin, xmax, ymin, ymax },
 			...params,
@@ -172,17 +179,19 @@ const ControlPanel = ({
 					</Item>
 				</Panel>
 			</Collapse>
-			<div>
-				{isComputing ? (
-					<Button onClick={onCancel} block size="large">
+			{isComputing ? (
+				<Item name="stop" initialValue={true}>
+					<Button htmlType="submit" block size="large">
 						Stop
 					</Button>
-				) : (
+				</Item>
+			) : (
+				<Item name="compute" initialValue={true}>
 					<Button type="primary" htmlType="submit" block size="large">
 						Compute
 					</Button>
-				)}
-			</div>
+				</Item>
+			)}
 		</Form>
 	);
 };

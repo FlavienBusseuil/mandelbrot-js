@@ -1,14 +1,14 @@
 import { Layout } from "antd";
 import paper, { Color, Layer, Path, Point, Size } from "paper";
-import React, { useEffect, useReducer, useState, useRef } from "react";
-import ControlPanel from "../components/ControlPanel";
+import React, { useEffect, useReducer, useRef, useState } from "react";
+import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
+import { drawZone } from "../utils/draw/drawZone";
 import JobQueue from "../utils/JobQueue";
 import { mandelbrotZone } from "../utils/mandelbrot";
 import { splitZone } from "../utils/splitZone";
 import { wait } from "../utils/wait";
+import ControlPanel from "./ControlPanel";
 import styles from "./Sketch.module.scss";
-import { drawZone } from "../utils/draw/drawZone";
-import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
 
 const { Sider, Content } = Layout;
 
@@ -312,7 +312,8 @@ const Sketch = () => {
 		};
 	}, [zone, zoom]);
 
-	const handleCancel = () => {
+	const handleCancel = (params) => {
+		dispatchParams(params);
 		JobQueue.cancelPreviousJobs();
 	};
 
