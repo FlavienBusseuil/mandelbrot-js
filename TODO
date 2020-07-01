@@ -7,6 +7,7 @@ Compute:
 	✔ Ajouter une fonction stop @done(20-05-13 16:20)
 	✔ Améliorer la profondeur du rendu @done(20-05-12 23:34)
 	✔ Améliorer la rapidité de la select zone @done(20-05-07 14:15)
+	☐ Do not re-Compute drawn points
 	☐ Améliorer le rendu en // (service worker) @low
 	☐ Using bignumber.js or equivalent @low
 	☐ Compute image server-side @low
@@ -19,14 +20,17 @@ UX:
 	✔ Better Control Panel Design UI @done(20-05-28 06:46)
 	✔ Re-render on size change @done(20-05-28 10:43)
 	✔ Select resolution @done(20-05-28 13:42)
-	☐ Auto-zone on zoom
-	☐ Auto-zoom zone
+	✔ Auto-zone on zoom @done(20-06-06 23:35)
+	☐ Mouse drag
 	☐ Settings in URL
 	☐ Copie / paste settings
 	☐ Render to img
 	☐ Scroll to mouse position
+	☐ read only zone @low
+	☐ center location @low
 	☐ up/down cell size => mul2/div2 @low
 	☐ Easing func editor @low
 	☐ Drag with middle mouse @low
 	☐ Split debug: DebugCell, DebugZone @low
+	☐ Some optimizations (https://github.com/cslarsen/mandelbrot-js) @low
 
