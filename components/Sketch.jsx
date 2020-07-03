@@ -1,5 +1,13 @@
 import { Layout } from "antd";
-import paper, { Color, Layer, Path, Point, Size } from "paper";
+import paper, {
+	Color,
+	Layer,
+	Path,
+	Point,
+	Size,
+	Matrix,
+	Rectangle,
+} from "paper";
 import React, { useEffect, useReducer, useRef, useState } from "react";
 import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
 import { drawZone } from "../utils/draw/drawZone";
@@ -11,6 +19,19 @@ import ControlPanel from "./ControlPanel";
 import styles from "./Sketch.module.scss";
 
 const { Sider, Content } = Layout;
+
+const mandelMatrix = new Matrix();
+const mandelCenter = new Point(0, 0);
+
+function toMandelView({ x, y }) {
+	const { translation, scaling: zoom } = mandelMatrix;
+	return { x: x * zoom + translation.x, y: y * zoom + translation.y };
+}
+
+function toPaperView({ x, y }) {
+	const { translation, scaling: zoom } = mandelMatrix;
+	return { x: (x - translation.x) / zoom, y: (y - translation.y) / zoom };
+}
 
 function getTranslation({ zone, zoom }) {
 	const center = new Point(
@@ -130,37 +151,79 @@ async function computeAndDrawMandelbrot({
 	nbIteration,
 	setIsComputing,
 	setRealCellSize,
-	token,
 	threshold,
 	zone,
 	zoom,
 }) {
-	setIsComputing(true);
+	console.log(paper.view.center);
+	JobQueue.append(async ({ token }) => {
+		setIsComputing(true);
 
-	paper.project.clear();
+		paper.project.clear();
 
-	const translation = getTranslation({ zone, zoom });
+		const translation = getTranslation({ zone, zoom });
 
-	const { cellW, cellH } = await computeAndDrawMandelbrotRec({
-		depth,
-		targetCellSize,
-		isDebugging,
-		nbIteration,
-		setIsComputing,
-		setRealCellSize,
-		threshold,
-		token,
-		transform: { zoom, translation },
-		zone,
+		const { cellW, cellH } = await computeAndDrawMandelbrotRec({
+			depth,
+			targetCellSize,
+			isDebugging,
+			nbIteration,
+			setIsComputing,
+			setRealCellSize,
+			threshold,
+			token,
+			transform: { zoom, translation },
+			zone,
+		});
+
+		if (!token.isCancelled || !JobQueue.hasRunningJob()) {
+			setRealCellSize({ cellW, cellH });
+			setIsComputing(false);
+		}
 	});
+}
 
-	if (!token.isCancelled || !JobQueue.hasRunningJob()) {
-		setRealCellSize({ cellW, cellH });
-		setIsComputing(false);
-	}
+function getViewZone({ zone, zoom }) {
+	const { bottomRight, topLeft } = paper.view.bounds;
+
+	const center = new Point(
+		(zone.xmin + zone.xmax) / 2.0,
+		(zone.ymin + zone.ymax) / 2.0
+	);
+
+	return {
+		xmin: topLeft.x / zoom + center.x,
+		ymin: topLeft.y / zoom + center.y,
+		xmax: bottomRight.x / zoom + center.x,
+		ymax: bottomRight.y / zoom + center.y,
+	};
 }
 
 function reduceParams(params, newParams) {
+	const { zone, zoom, mustCompute } = newParams;
+
+	if (!mustCompute) {
+		return { ...params, ...newParams };
+	}
+
+	if (zone) {
+		const { xmin, ymin, xmax, ymax } = zone;
+
+		const currentCenter = mandelCenter.clone();
+		mandelCenter.set(
+			new Rectangle({
+				from: new Point(xmin, ymin),
+				to: new Point(xmax, ymax),
+			}).center
+		);
+		mandelMatrix.translate(mandelCenter.subtract(currentCenter));
+	}
+
+	if (zoom) {
+		const scale = zoom / params.zoom;
+		mandelMatrix.scale(scale, mandelCenter);
+	}
+
 	return { ...params, ...newParams };
 }
 
@@ -175,6 +238,7 @@ const Sketch = () => {
 			threshold,
 			zone,
 			zoom,
+			mustCompute,
 		},
 		dispatchParams,
 	] = useReducer(reduceParams, {
@@ -191,7 +255,9 @@ const Sketch = () => {
 			ymax: 1.5,
 		},
 		zoom: 250,
+		mustCompute: false,
 	});
+
 	const [realCellSize, setRealCellSize] = useState({
 		cellW: 4,
 		cellH: 4,
@@ -203,40 +269,16 @@ const Sketch = () => {
 	useEffect(() => {
 		// Init Paperjs with canvas
 		paper.setup(document.getElementById("mandel-view"));
-		// Start computing
-		JobQueue.append(({ token }) =>
-			computeAndDrawMandelbrot({
-				depth,
-				isDebugging,
-				nbIteration,
-				setIsComputing,
-				setRealCellSize,
-				targetCellSize,
-				token,
-				threshold,
-				zone,
-				zoom,
-			})
-		);
+		paper.view.center = new Point(0, 0);
+
+		// Initiate computing
+		dispatchParams({ mustCompute: true });
 	}, []);
 
 	// On resize
 	useEffect(() => {
 		paper.view.onResize = () => {
-			JobQueue.append(({ token }) =>
-				computeAndDrawMandelbrot({
-					depth,
-					isDebugging,
-					nbIteration,
-					setIsComputing,
-					setRealCellSize,
-					targetCellSize,
-					token,
-					threshold,
-					zone,
-					zoom,
-				})
-			);
+			dispatchParams({ mustCompute: true });
 		};
 	});
 
@@ -245,10 +287,18 @@ const Sketch = () => {
 		if (resolution === "fullview") {
 			const { offsetWidth, offsetHeight } = canvasRef.current;
 			paper.view.viewSize = new Size(offsetWidth, offsetHeight);
-			return;
+		} else {
+			const [width, height] = resolution
+				.split("r")[1]
+				.split("x")
+				.map(Number);
+			paper.view.viewSize = new Size(width, height);
 		}
-		const [width, height] = resolution.split("r")[1].split("x").map(Number);
-		paper.view.viewSize = new Size(width, height);
+
+		paper.view.center = new Point(0, 0);
+
+		const newZone = getViewZone({ zone, zoom });
+		dispatchParams({ zone: newZone, mustCompute: true });
 	}, [resolution]);
 
 	// Handle user zone drawing
@@ -295,22 +345,37 @@ const Sketch = () => {
 				zone: newZone,
 			});
 			// Start computing
-			JobQueue.append(({ token }) =>
-				computeAndDrawMandelbrot({
-					depth,
-					isDebugging,
-					nbIteration,
-					setIsComputing,
-					setRealCellSize,
-					targetCellSize,
-					token,
-					threshold,
-					zone: newZone,
-					zoom,
-				})
-			);
+			// computeAndDrawMandelbrot({
+			// 	depth,
+			// 	isDebugging,
+			// 	nbIteration,
+			// 	setIsComputing,
+			// 	setRealCellSize,
+			// 	targetCellSize,
+			// 	threshold,
+			// 	zone: newZone,
+			// 	zoom,
+			// });
 		};
 	}, [zone, zoom]);
+
+	useEffect(() => {
+		if (mustCompute) {
+			computeAndDrawMandelbrot({
+				setIsComputing,
+				setRealCellSize,
+				depth,
+				targetCellSize,
+				isDebugging,
+				nbIteration,
+				resolution,
+				threshold,
+				zone,
+				zoom,
+			});
+			dispatchParams({ mustCompute: false });
+		}
+	}, [mustCompute]);
 
 	const handleCancel = (params) => {
 		dispatchParams(params);
@@ -322,37 +387,28 @@ const Sketch = () => {
 			(Math.max(Math.min(deltaY, 100), -100) * zoom) / 500
 		);
 		const newZoom = zoom - deltaZoom;
-		dispatchParams({ zoom: newZoom > 1 ? newZoom : 1 });
+
+		const newZone = getViewZone({ zone, zoom: newZoom });
+
+		dispatchParams({ zoom: newZoom > 1 ? newZoom : 1, zone: newZone });
 
 		// Start computing
-		JobQueue.append(({ token }) =>
-			computeAndDrawMandelbrot({
-				depth,
-				isDebugging,
-				nbIteration,
-				setIsComputing,
-				setRealCellSize,
-				targetCellSize,
-				token,
-				threshold,
-				zone,
-				zoom: newZoom,
-			})
-		);
+		computeAndDrawMandelbrot({
+			depth,
+			isDebugging,
+			nbIteration,
+			setIsComputing,
+			setRealCellSize,
+			targetCellSize,
+			threshold,
+			zone: newZone,
+			zoom: newZoom,
+		});
 	};
 
 	// re-compute and draw
 	const handleChange = (params) => {
 		dispatchParams(params);
-
-		JobQueue.append(({ token }) =>
-			computeAndDrawMandelbrot({
-				setIsComputing,
-				setRealCellSize,
-				token,
-				...params,
-			})
-		);
 	};
 
 	return (
