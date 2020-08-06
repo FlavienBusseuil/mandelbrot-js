@@ -208,15 +208,21 @@ function reduceParams(params, newParams) {
 
 	if (zone) {
 		const { xmin, ymin, xmax, ymax } = zone;
-
-		const currentCenter = mandelCenter.clone();
-		mandelCenter.set(
-			new Rectangle({
-				from: new Point(xmin, ymin),
-				to: new Point(xmax, ymax),
-			}).center
-		);
-		mandelMatrix.translate(mandelCenter.subtract(currentCenter));
+		if (
+			xmax !== params.zone.xmax ||
+			ymax !== params.zone.ymax ||
+			xmin !== params.zone.xmin ||
+			ymin !== params.zone.ymin
+		) {
+			const currentCenter = mandelCenter.clone();
+			mandelCenter.set(
+				new Rectangle({
+					from: new Point(xmin, ymin),
+					to: new Point(xmax, ymax),
+				}).center
+			);
+			mandelMatrix.translate(mandelCenter.subtract(currentCenter));
+		}
 	}
 
 	if (zoom) {

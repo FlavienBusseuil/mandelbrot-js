@@ -1,20 +1,23 @@
 Draw:
-	✔ Lissage des couleurs @done(20-05-05 16:01)
-	☐ Plus de choix et combinaisons de couleurs
+	✔ Smoothing colors (with ease functions) @done(20-05-05 16:01)
+	☐ More color combinations @low
 
 Compute:
-	✔ Changer le nombre d'itération + seuil au zoom @done(20-05-05 14:16)
-	✔ Ajouter une fonction stop @done(20-05-13 16:20)
-	✔ Améliorer la profondeur du rendu @done(20-05-12 23:34)
-	✔ Améliorer la rapidité de la select zone @done(20-05-07 14:15)
-	☐ Do not re-Compute drawn points
-	☐ Améliorer le rendu en // (service worker) @low
+	✔ Changer nb of iterations and zoom threshold @done(20-05-05 14:16)
+	✔ Stop function @done(20-05-13 16:20)
+	✔ Improve render depth @done(20-05-12 23:34)
+	✔ Improve select zone computation @done(20-05-07 14:15)
+	☐ Use Matrix for change of basis @started
+	☐ Do not re-Compute drawn points @low
+	☐ // render (service worker) @low
 	☐ Using bignumber.js or equivalent @low
-	☐ Compute image server-side @low
+	☐ Image computation on server-side option @low
+	☐ Fix cell size scaling on depth @low
+	☐ Some optimizations (https://github.com/cslarsen/mandelbrot-js) @low
 
 UX:
 	✔ Afficher les valeurs exactes de tailles de pixels @done(20-05-04 22:11)
-	✔ Rendre le bouton Stop opérationnel @done(20-05-13 16:24)
+	✔ Stop button @done(20-05-13 16:24)
 	✔ Scroll zoom @done(20-05-14 09:13)
 	✔ Stop on zoom/zone @done(20-05-14 09:15)
 	✔ Better Control Panel Design UI @done(20-05-28 06:46)
@@ -22,15 +25,12 @@ UX:
 	✔ Select resolution @done(20-05-28 13:42)
 	✔ Auto-zone on zoom @done(20-06-06 23:35)
 	☐ Mouse drag
-	☐ Settings in URL
-	☐ Copie / paste settings
-	☐ Render to img
-	☐ Scroll to mouse position
-	☐ read only zone @low
-	☐ center location @low
-	☐ up/down cell size => mul2/div2 @low
-	☐ Easing func editor @low
-	☐ Drag with middle mouse @low
+	☐ Settings in URL @low
+	☐ Copie / paste settings @low
+	☐ Render to img @low
+	☐ Scroll to mouse position @low
+	☐ Read only zone @low
+	☐ Display Center location (instead of zone) @low
+	☐ Easing func/color editor @low
 	☐ Split debug: DebugCell, DebugZone @low
-	☐ Some optimizations (https://github.com/cslarsen/mandelbrot-js) @low
 
