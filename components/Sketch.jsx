@@ -414,7 +414,7 @@ const Sketch = () => {
 
 	// re-compute and draw
 	const handleChange = (params) => {
-		dispatchParams(params);
+		dispatchParams({ ...params, mustCompute: true });
 	};
 
 	return (
