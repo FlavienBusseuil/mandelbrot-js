@@ -1,13 +1,5 @@
 import { Layout } from "antd";
-import paper, {
-	Color,
-	Layer,
-	Path,
-	Point,
-	Size,
-	Matrix,
-	Rectangle,
-} from "paper";
+import paper, { Layer, Point, Size, Matrix, Rectangle } from "paper";
 import React, { useEffect, useReducer, useRef, useState } from "react";
 import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
 import { drawZone } from "../utils/draw/drawZone";
@@ -22,24 +14,21 @@ const { Sider, Content } = Layout;
 
 const mandelMatrix = new Matrix();
 const mandelCenter = new Point(0, 0);
+const initialCoord = {
+	zoom: 1,
+	zone: { xmin: 0, ymin: 0, xmax: 0, ymax: 0 },
+};
 
 function toMandelView({ x, y }) {
-	const { translation, scaling: zoom } = mandelMatrix;
-	return { x: x * zoom + translation.x, y: y * zoom + translation.y };
+	return mandelMatrix.inverseTransform(new Point(x, y));
 }
 
 function toPaperView({ x, y }) {
-	const { translation, scaling: zoom } = mandelMatrix;
-	return { x: (x - translation.x) / zoom, y: (y - translation.y) / zoom };
+	return mandelMatrix.transform(new Point(x, y));
 }
 
-function getTranslation({ zone, zoom }) {
-	const center = new Point(
-		((zone.xmin + zone.xmax) * zoom) / 2.0,
-		((zone.ymin + zone.ymax) * zoom) / 2.0
-	);
-
-	return paper.view.center.subtract(center);
+function getTranslation() {
+	return mandelMatrix.translation;
 }
 
 const renderMandelbrot = async ({
@@ -155,13 +144,12 @@ async function computeAndDrawMandelbrot({
 	zone,
 	zoom,
 }) {
-	console.log(paper.view.center);
 	JobQueue.append(async ({ token }) => {
 		setIsComputing(true);
 
 		paper.project.clear();
 
-		const translation = getTranslation({ zone, zoom });
+		const translation = getTranslation();
 
 		const { cellW, cellH } = await computeAndDrawMandelbrotRec({
 			depth,
@@ -183,36 +171,26 @@ async function computeAndDrawMandelbrot({
 	});
 }
 
-function getViewZone({ zone, zoom }) {
+function getMandelViewZone() {
 	const { bottomRight, topLeft } = paper.view.bounds;
 
-	const center = new Point(
-		(zone.xmin + zone.xmax) / 2.0,
-		(zone.ymin + zone.ymax) / 2.0
-	);
+	const { x: xmin, y: ymin } = toMandelView(topLeft);
+	const { x: xmax, y: ymax } = toMandelView(bottomRight);
 
-	return {
-		xmin: topLeft.x / zoom + center.x,
-		ymin: topLeft.y / zoom + center.y,
-		xmax: bottomRight.x / zoom + center.x,
-		ymax: bottomRight.y / zoom + center.y,
-	};
+	return { xmin, ymin, xmax, ymax };
 }
 
-function reduceParams(params, newParams) {
-	const { zone, zoom, mustCompute } = newParams;
-
-	if (!mustCompute) {
-		return { ...params, ...newParams };
-	}
-
-	if (zone) {
-		const { xmin, ymin, xmax, ymax } = zone;
+function updateMandelMatrix(
+	{ zoom: newZoom, zone: newZone },
+	{ zoom: oldZoom, zone: oldZone } = initialCoord
+) {
+	if (newZone) {
+		const { xmin, ymin, xmax, ymax } = newZone;
 		if (
-			xmax !== params.zone.xmax ||
-			ymax !== params.zone.ymax ||
-			xmin !== params.zone.xmin ||
-			ymin !== params.zone.ymin
+			xmax !== oldZone.xmax ||
+			ymax !== oldZone.ymax ||
+			xmin !== oldZone.xmin ||
+			ymin !== oldZone.ymin
 		) {
 			const currentCenter = mandelCenter.clone();
 			mandelCenter.set(
@@ -225,9 +203,32 @@ function reduceParams(params, newParams) {
 		}
 	}
 
+	if (newZoom) {
+		const scale = newZoom / oldZoom;
+		mandelMatrix.scale(scale, mandelCenter);
+	}
+}
+
+function initParams(params) {
+	const { zone, zoom } = params;
+	updateMandelMatrix({ zone, zoom });
+	return { ...params };
+}
+
+function reduceParams(params, newParams) {
+	const { zoom, mustCompute } = newParams;
+
+	if (!mustCompute) {
+		return { ...params, ...newParams };
+	}
+
+	// if zoom changed reframe zone
 	if (zoom) {
 		const scale = zoom / params.zoom;
 		mandelMatrix.scale(scale, mandelCenter);
+
+		const newZone = getMandelViewZone();
+		return { ...params, ...newParams, zone: newZone };
 	}
 
 	return { ...params, ...newParams };
@@ -247,22 +248,26 @@ const Sketch = () => {
 			mustCompute,
 		},
 		dispatchParams,
-	] = useReducer(reduceParams, {
-		depth: 4,
-		targetCellSize: 4,
-		isDebugging: false,
-		nbIteration: 200,
-		resolution: "fullview",
-		threshold: 2,
-		zone: {
-			xmin: -2.25,
-			xmax: 1.25,
-			ymin: -1.5,
-			ymax: 1.5,
+	] = useReducer(
+		reduceParams,
+		{
+			depth: 4,
+			targetCellSize: 4,
+			isDebugging: false,
+			nbIteration: 200,
+			resolution: "fullview",
+			threshold: 2,
+			zone: {
+				xmin: -2.25,
+				xmax: 1.25,
+				ymin: -1.5,
+				ymax: 1.5,
+			},
+			zoom: 250,
+			mustCompute: false,
 		},
-		zoom: 250,
-		mustCompute: false,
-	});
+		initParams
+	);
 
 	const [realCellSize, setRealCellSize] = useState({
 		cellW: 4,
@@ -286,7 +291,7 @@ const Sketch = () => {
 		paper.view.onResize = () => {
 			dispatchParams({ mustCompute: true });
 		};
-	});
+	}, []);
 
 	// Change resolution
 	useEffect(() => {
@@ -303,67 +308,34 @@ const Sketch = () => {
 
 		paper.view.center = new Point(0, 0);
 
-		const newZone = getViewZone({ zone, zoom });
+		const newZone = getMandelViewZone();
 		dispatchParams({ zone: newZone, mustCompute: true });
 	}, [resolution]);
 
-	// Handle user zone drawing
 	useEffect(() => {
-		let firstCorner, userLayer;
-
-		paper.view.onMouseDown = async ({ point, event: { button } }) => {
+		paper.view.onMouseDown = async ({ event: { button } }) => {
 			if (button !== 0) return;
 
-			userLayer = new Layer({});
-			// Add the mouse down position
-			firstCorner = point;
 			JobQueue.cancelPreviousJobs();
 		};
-		paper.view.onMouseDrag = ({ point }) => {
-			if (!firstCorner) return;
-
-			userLayer.removeChildren();
-			new Path.Rectangle({
-				from: firstCorner,
-				to: point,
-				strokeColor: new Color(1, 0, 0),
-				strokeWidth: 1,
+		paper.view.onMouseDrag = ({ point, delta }) => {
+			JobQueue.cancelPreviousJobs();
+			const pointInMandelView = toMandelView(point);
+			const previewsPointInMandelView = toMandelView({
+				x: point.x - delta.x,
+				y: point.y - delta.y,
 			});
+			const translation = pointInMandelView.subtract(
+				previewsPointInMandelView
+			);
+			mandelMatrix.translate(translation);
+			mandelCenter.set(mandelCenter.subtract(translation));
+
+			const newZone = getMandelViewZone();
+			dispatchParams({ zone: newZone, mustCompute: true });
 		};
-		paper.view.onMouseUp = ({ point: secondCorner, event: { button } }) => {
-			if (button !== 0 || !firstCorner) return;
-
-			userLayer.remove();
-
-			if (secondCorner.equals(firstCorner)) {
-				return;
-			}
-
-			const translation = getTranslation({ zone, zoom });
-			const newZone = {
-				xmin: (firstCorner.x - translation.x) / zoom,
-				ymin: (firstCorner.y - translation.y) / zoom,
-				xmax: (secondCorner.x - translation.x) / zoom,
-				ymax: (secondCorner.y - translation.y) / zoom,
-			};
-			// Add the mouse up position:
-			dispatchParams({
-				zone: newZone,
-			});
-			// Start computing
-			// computeAndDrawMandelbrot({
-			// 	depth,
-			// 	isDebugging,
-			// 	nbIteration,
-			// 	setIsComputing,
-			// 	setRealCellSize,
-			// 	targetCellSize,
-			// 	threshold,
-			// 	zone: newZone,
-			// 	zoom,
-			// });
-		};
-	}, [zone, zoom]);
+		paper.view.onMouseUp = () => {};
+	}, []);
 
 	useEffect(() => {
 		if (mustCompute) {
@@ -394,21 +366,9 @@ const Sketch = () => {
 		);
 		const newZoom = zoom - deltaZoom;
 
-		const newZone = getViewZone({ zone, zoom: newZoom });
-
-		dispatchParams({ zoom: newZoom > 1 ? newZoom : 1, zone: newZone });
-
-		// Start computing
-		computeAndDrawMandelbrot({
-			depth,
-			isDebugging,
-			nbIteration,
-			setIsComputing,
-			setRealCellSize,
-			targetCellSize,
-			threshold,
-			zone: newZone,
-			zoom: newZoom,
+		dispatchParams({
+			zoom: newZoom > 1 ? newZoom : 1,
+			mustCompute: true,
 		});
 	};
 
