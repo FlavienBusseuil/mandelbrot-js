@@ -252,7 +252,7 @@ const Sketch = () => {
 		reduceParams,
 		{
 			depth: 4,
-			targetCellSize: 4,
+			targetCellSize: 2,
 			isDebugging: false,
 			nbIteration: 200,
 			resolution: "fullview",
