@@ -136,10 +136,10 @@ const ControlPanel = ({
 				<Panel forceRender header="Render" key="3">
 					<Item label="Resolution" name="resolution">
 						<Select>
-							<Option value="fullview">Full View</Option>
 							<Option value="r310x240">310x240</Option>
 							<Option value="r720x480">720x480</Option>
 							<Option value="r1280x720">1280x720</Option>
+							<Option value="fullview">Full View</Option>
 						</Select>
 					</Item>
 					<Item label="Depth" name="depth">
