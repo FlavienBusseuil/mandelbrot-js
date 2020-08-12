@@ -313,12 +313,16 @@ const Sketch = () => {
 	}, [resolution]);
 
 	useEffect(() => {
+		let mouseButtonPressed = -1;
 		paper.view.onMouseDown = async ({ event: { button } }) => {
+			mouseButtonPressed = button;
 			if (button !== 0) return;
 
 			JobQueue.cancelPreviousJobs();
 		};
 		paper.view.onMouseDrag = ({ point, delta }) => {
+			if (mouseButtonPressed !== 0) return;
+
 			JobQueue.cancelPreviousJobs();
 			const pointInMandelView = toMandelView(point);
 			const previewsPointInMandelView = toMandelView({
@@ -334,7 +338,9 @@ const Sketch = () => {
 			const newZone = getMandelViewZone();
 			dispatchParams({ zone: newZone, mustCompute: true });
 		};
-		paper.view.onMouseUp = () => {};
+		paper.view.onMouseUp = () => {
+			mouseButtonPressed = -1;
+		};
 	}, []);
 
 	useEffect(() => {
