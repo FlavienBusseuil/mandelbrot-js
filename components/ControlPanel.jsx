@@ -130,7 +130,7 @@ const ControlPanel = ({
 						</Row>
 					</Item>
 					<Item label="Zoom" name="zoom">
-						<InputNumber />
+						<InputNumber min={1} />
 					</Item>
 				</Panel>
 				<Panel forceRender header="Render" key="3">
