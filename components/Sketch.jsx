@@ -9,6 +9,7 @@ import { splitZone } from "../utils/splitZone";
 import { wait } from "../utils/wait";
 import ControlPanel from "./ControlPanel";
 import styles from "./Sketch.module.scss";
+import Help from "./Help";
 
 const { Sider, Content } = Layout;
 
@@ -412,6 +413,7 @@ const Sketch = () => {
 					onWheel={handleWheel}
 				/>
 			</Content>
+			<Help className={styles.help} />
 		</Layout>
 	);
 };

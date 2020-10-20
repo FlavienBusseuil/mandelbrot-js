@@ -16,6 +16,7 @@
     "prettier": "^2.0.2"
   },
   "dependencies": {
+    "@ant-design/icons": "^4.2.2",
     "@psychobolt/react-paperjs": "^0.0.56",
     "antd": "^4.2.5",
     "cancellationtoken": "^2.0.1",
