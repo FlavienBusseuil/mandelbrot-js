@@ -62,6 +62,9 @@ const ControlPanel = ({
 			size="small"
 			layout="vertical"
 			onFinish={handleSubmit}
+			onValuesChange={(changedValues, values) =>
+				onCancel({ ...values, ...changedValues })
+			}
 			initialValues={{
 				depth,
 				isComputing,

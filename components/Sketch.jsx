@@ -217,11 +217,7 @@ function initParams(params) {
 }
 
 function reduceParams(params, { x, y, ...newParams }) {
-	const { zoom, mustCompute } = newParams;
-
-	if (!mustCompute) {
-		return { ...params, ...newParams };
-	}
+	const { zoom } = newParams;
 
 	// if center location changed
 	if (
