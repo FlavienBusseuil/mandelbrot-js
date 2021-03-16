@@ -27,22 +27,17 @@ const ControlPanel = ({
 	nbIteration,
 	resolution,
 	threshold,
-	zone: { xmin, xmax, ymin, ymax },
+	x,
+	y,
 	zoom,
 }) => {
 	const [form] = useForm();
-	const handleSubmit = ({ stop, xmin, xmax, ymin, ymax, ...params }) => {
+	const handleSubmit = ({ stop, ...params }) => {
 		if (stop) {
-			return onCancel({
-				zone: { xmin, xmax, ymin, ymax },
-				...params,
-			});
+			return onCancel(params);
 		}
 
-		onChange({
-			zone: { xmin, xmax, ymin, ymax },
-			...params,
-		});
+		onChange(params);
 	};
 
 	useEffect(() => {
@@ -54,10 +49,8 @@ const ControlPanel = ({
 			resolution,
 			targetCellSize,
 			threshold,
-			xmax,
-			xmin,
-			ymax,
-			ymin,
+			x,
+			y,
 			zoom,
 		});
 	});
@@ -77,10 +70,8 @@ const ControlPanel = ({
 				resolution,
 				targetCellSize,
 				threshold,
-				xmax,
-				xmin,
-				ymax,
-				ymin,
+				x,
+				y,
 				zoom,
 			}}
 		>
@@ -103,27 +94,15 @@ const ControlPanel = ({
 					</Row>
 				</Panel>
 				<Panel forceRender header="Location" key="2">
-					<Item label="Zone">
+					<Item label="Center">
 						<Row>
 							<Col span={12}>
-								<Item label="X min" name="xmin">
+								<Item label="X" name="x">
 									<InputNumber />
 								</Item>
 							</Col>
 							<Col span={12}>
-								<Item label="Y min" name="ymin">
-									<InputNumber />
-								</Item>
-							</Col>
-						</Row>
-						<Row>
-							<Col span={12}>
-								<Item label="X max" name="xmax">
-									<InputNumber />
-								</Item>
-							</Col>
-							<Col span={12}>
-								<Item label="Y max" name="ymax">
+								<Item label="Y" name="y">
 									<InputNumber />
 								</Item>
 							</Col>

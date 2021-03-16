@@ -216,11 +216,22 @@ function initParams(params) {
 	return { ...params };
 }
 
-function reduceParams(params, newParams) {
+function reduceParams(params, { x, y, ...newParams }) {
 	const { zoom, mustCompute } = newParams;
 
 	if (!mustCompute) {
 		return { ...params, ...newParams };
+	}
+
+	// if center location changed
+	if (
+		(x !== undefined && x !== mandelCenter.x) ||
+		(y !== undefined && y !== mandelCenter)
+	) {
+		const newCenter = new Point(x, y);
+		const translation = mandelCenter.subtract(newCenter);
+		mandelMatrix.translate(translation);
+		mandelCenter.set(newCenter);
 	}
 
 	// if zoom changed reframe zone
@@ -399,7 +410,8 @@ const Sketch = () => {
 						realCellSize,
 						resolution,
 						threshold,
-						zone,
+						x: mandelCenter.x,
+						y: mandelCenter.y,
 						zoom,
 					}}
 				/>
