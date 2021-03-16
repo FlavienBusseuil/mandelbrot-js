@@ -20,7 +20,7 @@
     "@psychobolt/react-paperjs": "^0.0.56",
     "antd": "^4.2.5",
     "cancellationtoken": "^2.0.1",
-    "next": "^9.3.2",
+    "next": "^9.4.4",
     "paper": "^0.12.4",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
