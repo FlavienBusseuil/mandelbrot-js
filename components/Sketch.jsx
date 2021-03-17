@@ -4,6 +4,7 @@ import React, { useEffect, useReducer, useRef, useState } from "react";
 import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
 import { drawZone } from "../utils/draw/drawZone";
 import JobQueue from "../utils/JobQueue";
+import StaticWorker from "../utils/StaticWorker";
 import { mandelbrotZone } from "../utils/mandelbrot";
 import { splitZone } from "../utils/splitZone";
 import { wait } from "../utils/wait";
@@ -61,8 +62,6 @@ const renderMandelbrot = async ({
 	const raster = layer.rasterize(300);
 	layer.removeChildren();
 	layer.addChild(raster);
-
-	await wait(10);
 };
 
 const computeAndDrawMandelbrotRec = async ({
@@ -88,7 +87,7 @@ const computeAndDrawMandelbrotRec = async ({
 		return { cellW, cellH };
 	}
 
-	const points = await mandelbrotZone({
+	const points = await StaticWorker.work({
 		nbStepX: nbCellX,
 		nbStepY: nbCellY,
 		zone,
