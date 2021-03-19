@@ -5,9 +5,7 @@ import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
 import { drawZone } from "../utils/draw/drawZone";
 import JobQueue from "../utils/JobQueue";
 import WorkerCrew from "../utils/WorkerCrew";
-import { mandelbrotZone } from "../utils/mandelbrot";
 import { splitZone } from "../utils/splitZone";
-import { wait } from "../utils/wait";
 import ControlPanel from "./ControlPanel";
 import styles from "./Sketch.module.scss";
 import Help from "./Help";
@@ -124,6 +122,7 @@ const computeAndDrawMandelbrotRec = async ({
 			)
 		);
 		if (token.isCancelled) {
+			WorkerCrew.terminate();
 			return realCellSize;
 		}
 		layer.remove();
@@ -323,20 +322,35 @@ const Sketch = () => {
 
 	useEffect(() => {
 		let mouseButtonPressed = -1;
-		paper.view.onMouseDown = async ({ event: { button } }) => {
+		let cumulDelta = { x: 0, y: 0 };
+		let startingPoint = null;
+		paper.view.onMouseDown = async ({ event: { button }, point }) => {
 			mouseButtonPressed = button;
 			if (button !== 0) return;
 
 			JobQueue.cancelPreviousJobs();
+			startingPoint = point;
+			cumulDelta = { x: 0, y: 0 };
 		};
-		paper.view.onMouseDrag = ({ point, delta }) => {
+		paper.view.onMouseDrag = ({ delta }) => {
 			if (mouseButtonPressed !== 0) return;
 
-			JobQueue.cancelPreviousJobs();
-			const pointInMandelView = toMandelView(point);
+			cumulDelta.x += delta.x;
+			cumulDelta.y += delta.y;
+
+			// Move layers for fluid translation
+			paper.project.layers.forEach((layer) =>
+				layer.translate(new Point(delta.x, delta.y))
+			);
+		};
+		paper.view.onMouseUp = () => {
+			mouseButtonPressed = -1;
+
+			// Translate in MandelView world before re-render
+			const pointInMandelView = toMandelView(startingPoint);
 			const previewsPointInMandelView = toMandelView({
-				x: point.x - delta.x,
-				y: point.y - delta.y,
+				x: startingPoint.x - cumulDelta.x,
+				y: startingPoint.y - cumulDelta.y,
 			});
 			const translation = pointInMandelView.subtract(
 				previewsPointInMandelView
@@ -346,9 +360,6 @@ const Sketch = () => {
 
 			const newZone = getMandelViewZone();
 			dispatchParams({ zone: newZone, mustCompute: true });
-		};
-		paper.view.onMouseUp = () => {
-			mouseButtonPressed = -1;
 		};
 	}, []);
 
