@@ -20,7 +20,7 @@ export default class WorkerCrew {
 
 			// Empty the queue
 			if (this.jobQueue.length) {
-				const job = this.jobQueue.pop();
+				const job = this.jobQueue.shift();
 				job.resolve(this.work(job.data));
 			}
 
