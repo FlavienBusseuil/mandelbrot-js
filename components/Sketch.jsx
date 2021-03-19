@@ -4,7 +4,7 @@ import React, { useEffect, useReducer, useRef, useState } from "react";
 import { drawMandelbrot } from "../utils/draw/drawMandelbrot";
 import { drawZone } from "../utils/draw/drawZone";
 import JobQueue from "../utils/JobQueue";
-import StaticWorker from "../utils/StaticWorker";
+import WorkerCrew from "../utils/WorkerCrew";
 import { mandelbrotZone } from "../utils/mandelbrot";
 import { splitZone } from "../utils/splitZone";
 import { wait } from "../utils/wait";
@@ -87,7 +87,7 @@ const computeAndDrawMandelbrotRec = async ({
 		return { cellW, cellH };
 	}
 
-	const points = await StaticWorker.work({
+	const points = await WorkerCrew.work({
 		nbStepX: nbCellX,
 		nbStepY: nbCellY,
 		zone,
@@ -145,6 +145,7 @@ async function computeAndDrawMandelbrot({
 	zoom,
 }) {
 	JobQueue.append(async ({ token }) => {
+		console.time();
 		setIsComputing(true);
 
 		paper.project.clear();
@@ -168,6 +169,7 @@ async function computeAndDrawMandelbrot({
 			setRealCellSize({ cellW, cellH });
 			setIsComputing(false);
 		}
+		console.timeEnd();
 	});
 }
 
