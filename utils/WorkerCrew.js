@@ -1,6 +1,8 @@
 export default class WorkerCrew {
 	static i = 0;
-	static idleWorkers = new Array(8).fill().map(() => new Worker("worker.js"));
+	static idleWorkers = new Array(8)
+		.fill()
+		.map((_, i) => new Worker("worker.js", { name: `worker-${i}` }));
 	static allWorkers = [...this.idleWorkers];
 	static jobQueue = [];
 	static terminated = false;
