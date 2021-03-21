@@ -222,7 +222,7 @@ function reduceParams(params, { x, y, ...newParams }) {
 	// if center location changed
 	if (
 		(x !== undefined && x !== mandelCenter.x) ||
-		(y !== undefined && y !== mandelCenter)
+		(y !== undefined && y !== mandelCenter.y)
 	) {
 		const newCenter = new Point(x, y);
 		const translation = mandelCenter.subtract(newCenter);
