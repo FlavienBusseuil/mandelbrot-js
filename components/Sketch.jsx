@@ -263,7 +263,7 @@ const Sketch = () => {
 			targetCellSize: 2,
 			isDebugging: false,
 			nbIteration: 200,
-			resolution: "fullview",
+			resolution: "r1280x720",
 			threshold: 2,
 			zone: {
 				xmin: -2.25,
